@@ -4,7 +4,7 @@
     {
         private static void Main()
         {
-            using PlatformerGame game = new PlatformerGame();
+            using Platformer game = new Platformer();
             game.Run();
         }
     }
