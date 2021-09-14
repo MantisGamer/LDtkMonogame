@@ -10,15 +10,16 @@
 #region Using Statements
 using System;
 using System.Threading;
-using Examples.GameStateManagement;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Content;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
+using Examples.GameStateManagement;
+using Penumbra;
+using Examples.Camera;
 #endregion
 
 namespace Examples.Screens
-
 {
     /// <summary>
     /// This screen implements the actual game logic. It is just a
@@ -32,13 +33,33 @@ namespace Examples.Screens
         ContentManager content;
         SpriteFont gameFont;
 
+        Texture2D _backgroundTexture2D;
+        Rectangle _fullScreen;
+
         Vector2 playerPosition = new Vector2(100, 100);
         Vector2 enemyPosition = new Vector2(100, 100);
+
+        // Create sample light source and shadow hull.
+        Light light = new PointLight
+        {
+            Scale = new Vector2(1000f), // Range of the light source (how far the light will travel)
+            ShadowType = ShadowType.Solid // Will not lit hulls themselves
+        };
+        //Hull hull = new Hull(new Vector2(1.0f), new Vector2(-1.0f, 1.0f), new Vector2(-1.0f), new Vector2(1.0f, -1.0f))
+        //{
+        //    Position = new Vector2(400f, 240f),
+        //    Scale = new Vector2(50f)
+        //};
+
+        Camera2D Camera;
+
+        RenderTarget2D renderTarget;
 
         Random random = new Random();
 
         float pauseAlpha;
 
+        // Declare an inputaction, in this case, pauseAction
         InputAction pauseAction;
 
         #endregion
@@ -51,13 +72,12 @@ namespace Examples.Screens
         /// </summary>
         public GameplayScreen()
         {
-            TransitionOnTime = TimeSpan.FromSeconds(1.5);
+            TransitionOnTime = TimeSpan.FromSeconds(0.5);
             TransitionOffTime = TimeSpan.FromSeconds(0.5);
 
-            pauseAction = new InputAction(
-                new Buttons[] { Buttons.Start, Buttons.Back },
-                new Keys[] { Keys.Escape },
-                true);
+            // Construct the pauseAction with required parameters and inputs.
+            // InputAction(Buttons[] buttons, Keys[] keys, bool newPressOnly)
+            pauseAction = new InputAction(new Buttons[] { Buttons.Start, Buttons.Back }, new Keys[] { Keys.Escape }, true);
         }
 
 
@@ -73,6 +93,19 @@ namespace Examples.Screens
 
                 gameFont = content.Load<SpriteFont>("gamefont");
 
+                _backgroundTexture2D = content.Load<Texture2D>("TestLevelOne");
+
+                Camera = new Camera2D(ScreenManager.GraphicsDevice.Viewport, 800, 480, 1);
+
+                Camera.Pos = new Vector2(400, 240);
+
+                _fullScreen = new Rectangle(0, 0, ScreenManager.GraphicsDevice.Viewport.Width, ScreenManager.GraphicsDevice.Viewport.Height);
+
+                renderTarget = new RenderTarget2D(ScreenManager.GraphicsDevice, 800, 480, false, ScreenManager.GraphicsDevice.PresentationParameters.BackBufferFormat, DepthFormat.Depth24);
+
+                ScreenManager._penumbra.Lights.Add(light);
+                //ScreenManager._penumbra.Hulls.Add(hull);
+
                 // A real game would probably have more content than this sample, so
                 // it would take longer to load. We simulate that by delaying for a
                 // while, giving you a chance to admire the beautiful loading screen.
@@ -83,24 +116,11 @@ namespace Examples.Screens
                 // it should not try to catch up.
                 ScreenManager.Game.ResetElapsedTime();
             }
-
-#if WINDOWS_PHONE
-            if (Microsoft.Phone.Shell.PhoneApplicationService.Current.State.ContainsKey("PlayerPosition"))
-            {
-                playerPosition = (Vector2)Microsoft.Phone.Shell.PhoneApplicationService.Current.State["PlayerPosition"];
-                enemyPosition = (Vector2)Microsoft.Phone.Shell.PhoneApplicationService.Current.State["EnemyPosition"];
-            }
-#endif
         }
 
 
         public override void Deactivate()
         {
-#if WINDOWS_PHONE
-            Microsoft.Phone.Shell.PhoneApplicationService.Current.State["PlayerPosition"] = playerPosition;
-            Microsoft.Phone.Shell.PhoneApplicationService.Current.State["EnemyPosition"] = enemyPosition;
-#endif
-
             base.Deactivate();
         }
 
@@ -111,11 +131,6 @@ namespace Examples.Screens
         public override void Unload()
         {
             content.Unload();
-
-#if WINDOWS_PHONE
-            Microsoft.Phone.Shell.PhoneApplicationService.Current.State.Remove("PlayerPosition");
-            Microsoft.Phone.Shell.PhoneApplicationService.Current.State.Remove("EnemyPosition");
-#endif
         }
 
 
@@ -155,6 +170,14 @@ namespace Examples.Screens
 
                 enemyPosition = Vector2.Lerp(enemyPosition, targetPosition, 0.05f);
 
+                // Animate light position and hull rotation.
+                light.Position =
+                    new Vector2(400f, 240f) + // Offset origin
+                    new Vector2( // Position around origin
+                        (float)Math.Cos(gameTime.TotalGameTime.TotalSeconds),
+                        (float)Math.Sin(gameTime.TotalGameTime.TotalSeconds)) * 240f;
+                //hull.Rotation = MathHelper.WrapAngle(-(float)gameTime.TotalGameTime.TotalSeconds);
+
                 // TODO: this game isn't very fun! You could probably improve
                 // it by inserting something more interesting in this space :-)
             }
@@ -176,6 +199,8 @@ namespace Examples.Screens
             KeyboardState keyboardState = input.CurrentKeyboardStates[playerIndex];
             GamePadState gamePadState = input.CurrentGamePadStates[playerIndex];
 
+            MouseState mousestate = Mouse.GetState();
+
             // The game pauses either if the user presses the pause button, or if
             // they unplug the active gamepad. This requires us to keep track of
             // whether a gamepad was ever plugged in, because we don't want to pause
@@ -184,9 +209,10 @@ namespace Examples.Screens
                                        input.GamePadWasConnected[playerIndex];
 
             PlayerIndex player;
+            // Evaluats the pauseAction for conditions defined in the constructor, back and start buttons, Esc key, or gamepadDisconnected
             if (pauseAction.Evaluate(input, ControllingPlayer, out player) || gamePadDisconnected)
             {
-                ScreenManager.AddScreen(new PauseMenuScreen(), ControllingPlayer);
+                ScreenManager.AddScreen(new PauseMenuScreen(), player);
             }
             else
             {
@@ -204,6 +230,20 @@ namespace Examples.Screens
 
                 if (keyboardState.IsKeyDown(Keys.Down))
                     movement.Y++;
+
+                if (keyboardState.IsKeyDown(Keys.R))
+                    Camera.Zoom += 0.15f;
+
+                if (keyboardState.IsKeyDown(Keys.T))
+                    Camera.Zoom -= 0.15f;
+
+                if (keyboardState.IsKeyDown(Keys.F))
+                    Camera.Rotation += 0.05f;
+
+                if (keyboardState.IsKeyDown(Keys.G))
+                    Camera.Rotation -= 0.05f;
+
+                Camera.Pos = new Vector2(mousestate.X, mousestate.Y);
 
                 Vector2 thumbstick = gamePadState.ThumbSticks.Left;
 
@@ -225,25 +265,21 @@ namespace Examples.Screens
             }
         }
 
-
         /// <summary>
         /// Draws the gameplay screen.
         /// </summary>
-        public override void Draw(GameTime gameTime)
+        public override void Draw(GameTime gameTime, GraphicsDevice graphics, SpriteBatch spriteBatch)
         {
+            ScreenManager._penumbra.AmbientColor = Color.Transparent;
             // This game has a blue background. Why? Because!
-            ScreenManager.GraphicsDevice.Clear(ClearOptions.Target,
-                                               Color.CornflowerBlue, 0, 0);
+            graphics.Clear(ClearOptions.Target, Color.Black, 0, 0);
+            
+            // Use SamplerState.PointClamp when using small texture2D to avoid blur
+            spriteBatch.Begin(SpriteSortMode.Deferred, null, SamplerState.PointClamp, null, null, null, Camera.GetTransformation());
 
-            // Our player and enemy are both actually just text strings.
-            SpriteBatch spriteBatch = ScreenManager.SpriteBatch;
+            spriteBatch.Draw(_backgroundTexture2D, ScreenManager.GraphicsDevice.Viewport.Bounds, new Color(TransitionAlpha, TransitionAlpha, TransitionAlpha, 1f));
 
-            spriteBatch.Begin();
-
-            spriteBatch.DrawString(gameFont, "// TODO", playerPosition, Color.Green);
-
-            spriteBatch.DrawString(gameFont, "Insert Gameplay Here",
-                                   enemyPosition, Color.DarkRed);
+            spriteBatch.DrawString(gameFont, "Insert Gameplay Here", enemyPosition, Color.DarkRed);
 
             spriteBatch.End();
 
@@ -255,8 +291,6 @@ namespace Examples.Screens
                 ScreenManager.FadeBackBufferToBlack(alpha);
             }
         }
-
-
         #endregion
     }
 }

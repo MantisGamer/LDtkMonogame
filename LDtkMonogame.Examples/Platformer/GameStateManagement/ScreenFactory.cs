@@ -8,9 +8,9 @@
 #endregion
 
 using System;
+using Examples.GameStateManagement;
 
 namespace Examples.GameStateManagement
-
 {
     /// <summary>
     /// Our game's implementation of IScreenFactory which can handle creating the screens

@@ -32,7 +32,7 @@ namespace LDtk.Examples.Platformer
             Services.AddService(typeof(IScreenFactory), screenFactory);
 
             // Create the screen manager component.
-            screenManager = new ScreenManager(this, Content, spriteBatchMain);
+            screenManager = new ScreenManager(this);
             Components.Add(screenManager);
 
             penumbra = new PenumbraComponent(this);
@@ -53,7 +53,7 @@ namespace LDtk.Examples.Platformer
         private void AddInitialScreens()
         {
             // Activate the first screens.
-            screenManager.AddScreen(new PlayScreen(), null);
+            screenManager.AddScreen(new SplashScreenOne(), null);
         }
 
         /// <summary>
@@ -65,9 +65,9 @@ namespace LDtk.Examples.Platformer
 
             penumbra.BeginDraw();
 
-            graphics.GraphicsDevice.Clear(Color.CornflowerBlue);
+            graphics.GraphicsDevice.Clear(Color.Transparent);
 
-            screenManager.Draw(gameTime);
+            screenManager.Draw(gameTime, GraphicsDevice, spriteBatchMain);
 
             base.Draw(gameTime);
         }

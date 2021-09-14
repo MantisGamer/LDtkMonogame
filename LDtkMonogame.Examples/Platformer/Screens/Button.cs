@@ -13,7 +13,6 @@ using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 
 namespace Examples.Screens
-
 {
     /// <summary>
     /// A special button that handles toggling between "On" and "Off"

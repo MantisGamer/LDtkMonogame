@@ -10,7 +10,9 @@
 using System;
 using System.IO;
 using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input.Touch;
+using Penumbra;
 
 namespace Examples.GameStateManagement
 {
@@ -25,7 +27,6 @@ namespace Examples.GameStateManagement
         Hidden,
     }
 
-
     /// <summary>
     /// A screen is a single layer that has update and draw logic, and which
     /// can be combined with other layers to build up a complex menu system.
@@ -35,6 +36,7 @@ namespace Examples.GameStateManagement
     /// </summary>
     public abstract class GameScreen
     {
+
         /// <summary>
         /// Normally when one screen is brought up over the top of another,
         /// the first screen will transition off to make room for the new
@@ -50,6 +52,13 @@ namespace Examples.GameStateManagement
 
         bool isPopup = false;
 
+        public bool HasLights
+        {
+            get { return hasLights; }
+            protected set { hasLights = value; }
+        }
+
+        bool hasLights = false;
 
         /// <summary>
         /// Indicates how long the screen takes to
@@ -216,8 +225,8 @@ namespace Examples.GameStateManagement
         }
 
         bool isSerializable = true;
-
-
+        
+        
         /// <summary>
         /// Activates the screen. Called when the screen is added to the screen manager or if the game resumes
         /// from being paused or tombstoned.
@@ -228,7 +237,7 @@ namespace Examples.GameStateManagement
         /// </param>
         public virtual void Activate(bool instancePreserved) { }
 
-
+        
         /// <summary>
         /// Deactivates the screen. Called when the game is being deactivated due to pausing or tombstoning.
         /// </summary>
@@ -239,6 +248,11 @@ namespace Examples.GameStateManagement
         /// Unload content for the screen. Called when the screen is removed from the screen manager.
         /// </summary>
         public virtual void Unload() { }
+
+        /// <summary>
+        /// This is the final method call executed after screen transition and before all screen resources are unloaded
+        /// </summary>
+        //public virtual void Lastcall() { }
 
 
         /// <summary>
@@ -309,8 +323,8 @@ namespace Examples.GameStateManagement
             transitionPosition += transitionDelta * direction;
 
             // Did we reach the end of the transition?
-            if (direction < 0 && transitionPosition <= 0 ||
-                direction > 0 && transitionPosition >= 1)
+            if (((direction < 0) && (transitionPosition <= 0)) ||
+                ((direction > 0) && (transitionPosition >= 1)))
             {
                 transitionPosition = MathHelper.Clamp(transitionPosition, 0, 1);
                 return false;
@@ -332,7 +346,9 @@ namespace Examples.GameStateManagement
         /// <summary>
         /// This is called when the screen should draw itself.
         /// </summary>
-        public virtual void Draw(GameTime gameTime) { }
+        public virtual void Draw(GameTime gameTime, GraphicsDevice graphicsDevice, SpriteBatch spriteBatch) { }
+
+        public virtual void AddPenumbraLightsAndHulls(PenumbraComponent penumbra) { }
 
 
         /// <summary>

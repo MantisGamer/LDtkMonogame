@@ -13,7 +13,6 @@ using Microsoft.Xna.Framework.Input;
 using Microsoft.Xna.Framework.Input.Touch;
 
 namespace Examples.GameStateManagement
-
 {
     /// <summary>
     /// Helper for reading input from keyboard, gamepad, and touch input. This class 
@@ -35,7 +34,7 @@ namespace Examples.GameStateManagement
 
         public TouchCollection TouchState;
 
-        public readonly List<GestureSample> Gestures = new List<GestureSample>();
+        public List<GestureSample> Gestures = new List<GestureSample>();
         
 
         /// <summary>
@@ -57,12 +56,13 @@ namespace Examples.GameStateManagement
         /// </summary>
         public void Update()
         {
+
             for (int i = 0; i < MaxInputs; i++)
             {
                 LastKeyboardStates[i] = CurrentKeyboardStates[i];
                 LastGamePadStates[i] = CurrentGamePadStates[i];
 
-                CurrentKeyboardStates[i] = Keyboard.GetState((PlayerIndex)i);
+                CurrentKeyboardStates[i] = Keyboard.GetState();
                 CurrentGamePadStates[i] = GamePad.GetState((PlayerIndex)i);
 
                 // Keep track of whether a gamepad has ever been

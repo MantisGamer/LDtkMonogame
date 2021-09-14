@@ -1,43 +1,30 @@
-#region File Description
-//-----------------------------------------------------------------------------
-// BackgroundScreen.cs
-//
-// Microsoft XNA Community Game Platform
-// Copyright (C) Microsoft Corporation. All rights reserved.
-//-----------------------------------------------------------------------------
-#endregion
-
-#region Using Statements
-using System;
+﻿using Examples.GameStateManagement;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Content;
 using Microsoft.Xna.Framework.Graphics;
-using Examples.GameStateManagement;
-#endregion
+using System;
+using System.Collections.Generic;
+using System.Text;
 
 namespace Examples.Screens
 {
-    /// <summary>
-    /// The background screen sits behind all the other menu screens.
-    /// It draws a background image that remains fixed in place regardless
-    /// of whatever transitions the screens on top of it may be doing.
-    /// </summary>
-    class BackgroundScreen : GameScreen
+    class SplashScreenOne : GameScreen
     {
         #region Fields
 
         ContentManager content;
         Texture2D backgroundTexture;
 
+        float screenTime;
+
         #endregion
 
         #region Initialization
 
-
         /// <summary>
         /// Constructor.
         /// </summary>
-        public BackgroundScreen()
+        public SplashScreenOne()
         {
             TransitionOnTime = TimeSpan.FromSeconds(0.5);
             TransitionOffTime = TimeSpan.FromSeconds(0.5);
@@ -57,24 +44,31 @@ namespace Examples.Screens
                 if (content == null)
                     content = new ContentManager(ScreenManager.Game.Services, "Content");
 
-                backgroundTexture = content.Load<Texture2D>("TitleScreenLowRes");
+                backgroundTexture = content.Load<Texture2D>("MenuTextures/TEG Image");
             }
         }
 
+        /// <summary>
+        /// Deactivates the screen. Called when the game is being deactivated due to pausing or tombstoning.
+        /// </summary>
+        public override void Deactivate()
+        {
+            base.Deactivate();
+        }
 
         /// <summary>
-        /// Unloads graphics content for this screen.
+        /// Unload content for the screen. Called when the screen is removed from the screen manager.
         /// </summary>
         public override void Unload()
         {
+            // The next screen is added immediately before unloading resources of current screen to allow a smooth visual transition
+            //ScreenManager.AddScreen(new CustomMainMenuScreen(), null);
             content.Unload();
         }
-
 
         #endregion
 
         #region Update and Draw
-
 
         /// <summary>
         /// Updates the background screen. Unlike most screens, this should not
@@ -86,6 +80,14 @@ namespace Examples.Screens
         public override void Update(GameTime gameTime, bool otherScreenHasFocus,
                                                        bool coveredByOtherScreen)
         {
+            screenTime += (float)gameTime.ElapsedGameTime.TotalSeconds;
+
+            if (screenTime > 3)
+            {
+                LoadingScreen.Load(ScreenManager, true, 0, new MainMenuScreenImage());
+                this.IsExiting = true;
+            }
+
             base.Update(gameTime, otherScreenHasFocus, false);
         }
 
@@ -95,14 +97,11 @@ namespace Examples.Screens
         /// </summary>
         public override void Draw(GameTime gameTime, GraphicsDevice graphicsDevice, SpriteBatch spriteBatch)
         {
-            //SpriteBatch spriteBatch = ScreenManager.SpriteBatch;
             Viewport viewport = graphicsDevice.Viewport;
-            Rectangle fullscreen = new Rectangle(0, 0, viewport.Width, viewport.Height);
 
             spriteBatch.Begin();
 
-            spriteBatch.Draw(backgroundTexture, fullscreen,
-                             new Color(TransitionAlpha, TransitionAlpha, TransitionAlpha));
+            spriteBatch.Draw(backgroundTexture, ScreenManager.GraphicsDevice.Viewport.Bounds, new Color(TransitionAlpha, TransitionAlpha, TransitionAlpha));
 
             spriteBatch.End();
         }
@@ -111,3 +110,4 @@ namespace Examples.Screens
         #endregion
     }
 }
+

@@ -13,7 +13,6 @@ using Microsoft.Xna.Framework;
 #endregion
 
 namespace Examples.Screens
-
 {
     /// <summary>
     /// Custom event argument which includes the index of the player who

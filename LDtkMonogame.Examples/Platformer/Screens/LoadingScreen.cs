@@ -9,13 +9,12 @@
 
 #region Using Statements
 using System;
-using Examples.GameStateManagement;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
+using Examples.GameStateManagement;
 #endregion
 
 namespace Examples.Screens
-
 {
     /// <summary>
     /// The loading screen coordinates transitions between the menu system and the
@@ -117,7 +116,7 @@ namespace Examples.Screens
         /// <summary>
         /// Draws the loading screen.
         /// </summary>
-        public override void Draw(GameTime gameTime)
+        public override void Draw(GameTime gameTime, GraphicsDevice graphicsDevice, SpriteBatch spriteBatch)
         {
             // If we are the only active screen, that means all the previous screens
             // must have finished transitioning off. We check for this in the Draw
@@ -138,7 +137,7 @@ namespace Examples.Screens
             // to bother drawing the message.
             if (loadingIsSlow)
             {
-                SpriteBatch spriteBatch = ScreenManager.SpriteBatch;
+                //SpriteBatch spriteBatch = ScreenManager.SpriteBatch;
                 SpriteFont font = ScreenManager.Font;
 
                 const string message = "Loading...";

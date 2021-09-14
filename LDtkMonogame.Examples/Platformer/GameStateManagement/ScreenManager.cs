@@ -15,13 +15,13 @@ using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Content;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input.Touch;
+using Penumbra;
 using System.IO;
 using System.IO.IsolatedStorage;
-using System.Xml.Linq;
+//using System.Xml.Linq;
 #endregion
 
 namespace Examples.GameStateManagement
-
 {
     /// <summary>
     /// The screen manager is a component which manages one or more GameScreen
@@ -35,10 +35,17 @@ namespace Examples.GameStateManagement
 
         private const string StateFilename = "ScreenManagerState.xml";
 
-        ContentManager Content;
+        public PenumbraComponent _penumbra;
 
         List<GameScreen> screens = new List<GameScreen>();
         List<GameScreen> tempScreensList = new List<GameScreen>();
+
+        public Rectangle ViewportRect
+        {
+            get { return _screenSize;  }
+            set { _screenSize = value; }
+        }
+        private Rectangle _screenSize;
 
         InputState input = new InputState();
 
@@ -49,6 +56,8 @@ namespace Examples.GameStateManagement
         bool isInitialized;
 
         bool traceEnabled;
+
+        bool isGameExiting;
 
         #endregion
 
@@ -86,6 +95,17 @@ namespace Examples.GameStateManagement
             set { traceEnabled = value; }
         }
 
+        /// <summary>
+        /// If true, the manager prints out a list of all the screens
+        /// each time it is updated. This can be useful for making sure
+        /// everything is being added and removed at the right times.
+        /// </summary>
+        public bool IsGameExiting
+        {
+            get { return isGameExiting; }
+            set { isGameExiting = value; }
+        }
+
 
         /// <summary>
         /// Gets a blank texture that can be used by the screens.
@@ -104,9 +124,9 @@ namespace Examples.GameStateManagement
         /// <summary>
         /// Constructs a new screen manager component.
         /// </summary>
-        public ScreenManager(Game game, ContentManager content, SpriteBatch spritebatch) : base(game)
+        public ScreenManager(Game game)
+            : base(game)
         {
-            this.Content = content;
             // we must set EnabledGestures before we can query for them, but
             // we don't assume the game wants to read them.
             TouchPanel.EnabledGestures = GestureType.None;
@@ -118,9 +138,9 @@ namespace Examples.GameStateManagement
         /// </summary>
         public override void Initialize()
         {
-            isInitialized = true;
-
             base.Initialize();
+
+            isInitialized = true;
         }
 
 
@@ -133,13 +153,14 @@ namespace Examples.GameStateManagement
             ContentManager content = Game.Content;
 
             spriteBatch = new SpriteBatch(GraphicsDevice);
-            //font = Content.Load<SpriteFont>("menufont");
+            font = content.Load<SpriteFont>("Fonts/bitwise");
             blankTexture = content.Load<Texture2D>("Art/blank");
 
             // Tell each of the screens to load their content.
             foreach (GameScreen screen in screens)
             {
                 screen.Activate(false);
+
             }
         }
 
@@ -152,6 +173,7 @@ namespace Examples.GameStateManagement
             // Tell each of the screens to unload their content.
             foreach (GameScreen screen in screens)
             {
+                //screen.Lastcall();
                 screen.Unload();
             }
         }
@@ -233,14 +255,25 @@ namespace Examples.GameStateManagement
         /// <summary>
         /// Tells each screen to draw itself.
         /// </summary>
-        public override void Draw(GameTime gameTime)
+        //public void Draw(GameTime gameTime)
+        //{
+        //    foreach (GameScreen screen in screens)
+        //    {
+        //        if (screen.ScreenState == ScreenState.Hidden)
+        //            continue;
+
+        //        screen.Draw(gameTime);
+        //    }
+        //}
+
+        internal void Draw(GameTime gameTime, GraphicsDevice graphicsDevice, SpriteBatch spriteBatch)
         {
             foreach (GameScreen screen in screens)
             {
                 if (screen.ScreenState == ScreenState.Hidden)
                     continue;
 
-                screen.Draw(gameTime);
+                screen.Draw(gameTime, graphicsDevice, spriteBatch);
             }
         }
 
@@ -258,6 +291,8 @@ namespace Examples.GameStateManagement
             screen.ControllingPlayer = controllingPlayer;
             screen.ScreenManager = this;
             screen.IsExiting = false;
+
+            
 
             // If we have a graphics device, tell the screen to load content.
             if (isInitialized)
@@ -283,6 +318,7 @@ namespace Examples.GameStateManagement
             // If we have a graphics device, tell the screen to unload content.
             if (isInitialized)
             {
+                //screen.Lastcall();
                 screen.Unload();
             }
 

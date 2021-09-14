@@ -8,11 +8,11 @@
 #endregion
 
 using System;
+using Examples.GameStateManagement;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Input;
 
 namespace Examples.GameStateManagement
-
 {
     /// <summary>
     /// Defines an action that is designated by some set of buttons and/or keys.
@@ -32,7 +32,7 @@ namespace Examples.GameStateManagement
         private readonly Keys[] keys;
         private readonly bool newPressOnly;
 
-        // These delegate types map to the methods on InputState. We use these to simplify the evalute method
+        // Defines delegates, ButtonPress and KeyPress, and maps to the methods on InputState. We use these to simplify the evalute method
         // by allowing us to map the appropriate delegates and invoke them, rather than having two separate code paths.
         private delegate bool ButtonPress(Buttons button, PlayerIndex? controllingPlayer, out PlayerIndex player);
         private delegate bool KeyPress(Keys key, PlayerIndex? controllingPlayer, out PlayerIndex player);
@@ -66,6 +66,7 @@ namespace Examples.GameStateManagement
             // Figure out which delegate methods to map from the state which takes care of our "newPressOnly" logic
             ButtonPress buttonTest;
             KeyPress keyTest;
+
             if (newPressOnly)
             {
                 buttonTest = state.IsNewButtonPress;

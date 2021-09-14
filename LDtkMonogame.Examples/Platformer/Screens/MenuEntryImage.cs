@@ -22,14 +22,18 @@ namespace Examples.Screens
     /// entries in different ways. This also provides an event that will be raised
     /// when the menu entry is selected.
     /// </summary>
-    class MenuEntry
+    class MenuEntryImage
     {
+
         #region Fields
+        Color _color = Color.White;
+        float _scale = 1;
+        Vector2 _origin;
 
         /// <summary>
-        /// The text rendered for this entry.
+        /// The texture2D rendered for this entry.
         /// </summary>
-        string text;
+        Texture2D _texture2D;
 
         /// <summary>
         /// Tracks a fading selection effect on the entry.
@@ -37,13 +41,13 @@ namespace Examples.Screens
         /// <remarks>
         /// The entries transition out of the selection effect when they are deselected.
         /// </remarks>
-        float selectionFade;
+        float _selectionFade;
 
         /// <summary>
         /// The position at which the entry is drawn. This is set by the MenuScreen
         /// each frame in Update.
         /// </summary>
-        Vector2 position;
+        Vector2 _position;
 
         #endregion
 
@@ -53,10 +57,9 @@ namespace Examples.Screens
         /// <summary>
         /// Gets or sets the text of this menu entry.
         /// </summary>
-        public string Text
+        public Texture2D Texture2D
         {
-            get { return text; }
-            set { text = value; }
+            get { return _texture2D; }
         }
 
 
@@ -65,10 +68,31 @@ namespace Examples.Screens
         /// </summary>
         public Vector2 Position
         {
-            get { return position; }
-            set { position = value; }
+            get { return _position; }
+            set { _position = value; }
         }
 
+        public int Width
+        {
+            get { return _texture2D.Width; }
+        }
+
+        public int Height
+        {
+            get { return _texture2D.Height; }
+        }
+
+        public Vector2 Origin
+        {
+            get { return new Vector2(_texture2D.Width / 2, _texture2D.Height / 2); }
+            set { _origin = value; }
+        }
+
+        public float Scale
+        {
+            get { return _scale; }
+            set { _scale = value; }
+        }
 
         #endregion
 
@@ -97,11 +121,12 @@ namespace Examples.Screens
 
 
         /// <summary>
-        /// Constructs a new menu entry with the specified text.
+        /// Constructs a new menu entry with the specified texture.
         /// </summary>
-        public MenuEntry(string text)
+        public MenuEntryImage(Texture2D texture2D)
         {
-            this.text = text;
+           this._texture2D = texture2D;
+           this._origin = new Vector2(_texture2D.Width / 2, _texture2D.Height / 2);
         }
 
 
@@ -113,13 +138,8 @@ namespace Examples.Screens
         /// <summary>
         /// Updates the menu entry.
         /// </summary>
-        public virtual void Update(MenuScreen screen, bool isSelected, GameTime gameTime)
+        public virtual void Update(MenuScreenImage screen, bool isSelected, GameTime gameTime)
         {
-            // there is no such thing as a selected item on Windows Phone, so we always
-            // force isSelected to be false
-#if WINDOWS_PHONE
-            isSelected = false;
-#endif
 
             // When the menu selection changes, entries gradually fade between
             // their selected and deselected appearance, rather than instantly
@@ -127,61 +147,33 @@ namespace Examples.Screens
             float fadeSpeed = (float)gameTime.ElapsedGameTime.TotalSeconds * 4;
 
             if (isSelected)
-                selectionFade = Math.Min(selectionFade + fadeSpeed, 1);
+                _selectionFade = Math.Min(_selectionFade + fadeSpeed, 1);
             else
-                selectionFade = Math.Max(selectionFade - fadeSpeed, 0);
+                _selectionFade = Math.Max(_selectionFade - fadeSpeed, 0);
         }
 
 
         /// <summary>
         /// Draws the menu entry. This can be overridden to customize the appearance.
         /// </summary>
-        public virtual void Draw(MenuScreen screen, bool isSelected, GameTime gameTime)
+        public virtual void Draw(MenuScreenImage screen, bool isSelected, GameTime gameTime, SpriteBatch spriteBatch)
         {
             // Draw the selected entry in yellow, otherwise white.
-            Color color = isSelected ? Color.Yellow : Color.White;
+            _color = isSelected ? Color.OrangeRed : Color.DarkSlateGray;
 
             // Pulsate the size of the selected menu entry.
             double time = gameTime.TotalGameTime.TotalSeconds;
             
-            float pulsate = (float)Math.Sin(time * 6) + 1;
+            float pulsate = (float)Math.Sin(time * 4) + 1;
 
-            float scale = 1 + pulsate * 0.05f * selectionFade;
+            _scale = 1 + pulsate * 0.05f * _selectionFade;
+            //float _scale = 1 + pulsate * 0.05f * _selectionFade;
 
             // Modify the alpha to fade text out during transitions.
-            color *= screen.TransitionAlpha;
+            _color *= screen.TransitionAlpha;
 
-            // Draw text, centered on the middle of each line.
-            ScreenManager screenManager = screen.ScreenManager;
-            SpriteBatch spriteBatch = screenManager.SpriteBatch;
-            SpriteFont font = screenManager.Font;
-
-            Vector2 origin = new Vector2(0, font.LineSpacing / 2);
-
-            spriteBatch.Begin();
-            spriteBatch.DrawString(font, text, position, color, 0,
-                                   origin, scale, SpriteEffects.None, 0);
-            spriteBatch.End();
+            spriteBatch.Draw(_texture2D, _position, null, _color, 0, _origin, _scale, SpriteEffects.None, 0);
         }
-
-
-        /// <summary>
-        /// Queries how much space this menu entry requires.
-        /// </summary>
-        public virtual int GetHeight(MenuScreen screen)
-        {
-            return screen.ScreenManager.Font.LineSpacing;
-        }
-
-
-        /// <summary>
-        /// Queries how wide the entry is, used for centering on the screen.
-        /// </summary>
-        public virtual int GetWidth(MenuScreen screen)
-        {
-            return (int)screen.ScreenManager.Font.MeasureString(Text).X;
-        }
-
 
         #endregion
     }

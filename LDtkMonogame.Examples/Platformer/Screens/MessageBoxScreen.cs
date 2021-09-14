@@ -9,15 +9,14 @@
 
 #region Using Statements
 using System;
-using Examples.GameStateManagement;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Content;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
+using Examples.GameStateManagement;
 #endregion
 
 namespace Examples.Screens
-
 {
     /// <summary>
     /// A popup message box screen, used to display "are you sure?"
@@ -95,7 +94,7 @@ namespace Examples.Screens
             if (!instancePreserved)
             {
                 ContentManager content = ScreenManager.Game.Content;
-                gradientTexture = content.Load<Texture2D>("gradient");
+                gradientTexture = content.Load<Texture2D>("Art/gradient");
             }
         }
 
@@ -144,16 +143,16 @@ namespace Examples.Screens
         /// <summary>
         /// Draws the message box.
         /// </summary>
-        public override void Draw(GameTime gameTime)
+        public override void Draw(GameTime gameTime, GraphicsDevice graphicsDevice, SpriteBatch spriteBatch)
         {
-            SpriteBatch spriteBatch = ScreenManager.SpriteBatch;
+            //SpriteBatch spriteBatch = ScreenManager.SpriteBatch;
             SpriteFont font = ScreenManager.Font;
 
             // Darken down any other screens that were drawn beneath the popup.
             ScreenManager.FadeBackBufferToBlack(TransitionAlpha * 2 / 3);
 
             // Center the message text in the viewport.
-            Viewport viewport = ScreenManager.GraphicsDevice.Viewport;
+            Viewport viewport = graphicsDevice.Viewport;
             Vector2 viewportSize = new Vector2(viewport.Width, viewport.Height);
             Vector2 textSize = font.MeasureString(message);
             Vector2 textPosition = (viewportSize - textSize) / 2;

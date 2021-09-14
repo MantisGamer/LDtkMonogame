@@ -12,7 +12,6 @@ using Microsoft.Xna.Framework;
 #endregion
 
 namespace Examples.Screens
-
 {
     /// <summary>
     /// The pause menu comes up over the top of the game,
