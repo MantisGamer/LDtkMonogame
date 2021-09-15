@@ -25,17 +25,30 @@ namespace Examples.Screens
         protected float pixelScale = 1f;
         protected bool freeCam = true;
         protected Texture2D texture;
+        protected Matrix camera;
 
         // LDtk stuff
         private LDtkWorld world;
         private LevelManager levelManager;
+        private KeyboardState oldKeyboard;
+        private MouseState oldMouse;
 
         // Entities
+        private Texture2D pixelTexture;
         private readonly List<Door> doors = new List<Door>();
         private readonly List<Crate> crates = new List<Crate>();
         private readonly List<Diamond> diamonds = new List<Diamond>();
+        private Player LDtkPlayer;
 
         // UI
+        private Texture2D diamondTexture;
+        private Texture2D fontTexture;
+        private int diamondsCollected;
+
+        // Debug
+        private bool showTileColliders = false;
+        private bool showEntityColliders;
+        private Door destinationDoor;
 
         float pauseAlpha;
 
@@ -47,8 +60,6 @@ namespace Examples.Screens
         Random random = new Random();
 
         Point MousePosition = new Point();
-        private KeyboardState oldKeyboard;
-        private MouseState oldMouse;
 
         // Store reference to lighting system.
         PenumbraComponent penumbra;
@@ -56,21 +67,23 @@ namespace Examples.Screens
         // Create sample light source and shadow hull.
         Light light = new PointLight
         {
-            Scale = new Vector2(1000f), // Range of the light source (how far the light will travel)
+            Scale = new Vector2(200), // Range of the light source (how far the light will travel)
             ShadowType = ShadowType.Solid // Will not lit hulls themselves
         };
-        Hull hull = new Hull(new Vector2(1.0f), new Vector2(-1.0f, 1.0f), new Vector2(-1.0f), new Vector2(1.0f, -1.0f))
-        {
-            Position = new Vector2(400f, 240f),
-            Scale = new Vector2(50f)
-        };
+        //Hull hull = new Hull(new Vector2(1.0f), new Vector2(-1.0f, 1.0f), new Vector2(-1.0f), new Vector2(1.0f, -1.0f))
+        //{
+        //    Position = new Vector2(400f, 240f),
+        //    Scale = new Vector2(50f)
+        //};
 
         #endregion
 
         public PlayScreen()
         {
-            TransitionOnTime = TimeSpan.FromSeconds(1.5);
+            TransitionOnTime = TimeSpan.FromSeconds(0.5);
             TransitionOffTime = TimeSpan.FromSeconds(0.5);
+
+            freeCam = false;
 
             pauseAction = new InputAction(
                 new Buttons[] { Buttons.Start, Buttons.Back },
@@ -96,7 +109,7 @@ namespace Examples.Screens
 
                 penumbra = new PenumbraComponent(ScreenManager.Game);
                 penumbra.Lights.Add(light);
-                penumbra.Hulls.Add(hull);
+                //penumbra.Hulls.Add(hull);
                 penumbra.AmbientColor = Color.Black;
 
                 world = content.Load<LDtkWorld>("LDtkMonogameExample");
@@ -126,14 +139,41 @@ namespace Examples.Screens
                 };
 
                 levelManager.ChangeLevelTo("Level1");
+                LDtkEntity startLocation = levelManager.CurrentLevel.GetEntity<LDtkEntity>("PlayerSpawn");
 
-                // Initialize the lighting system.
-                penumbra.Initialize();
+                LDtkPlayer = new Player
+                {
+                    Texture = content.Load<Texture2D>("Art/Characters/KingHuman"),
+                    Position = startLocation.Position,
+                    Pivot = startLocation.Pivot,
+#if DEBUG
+                    EditorVisualColor = startLocation.EditorVisualColor,
+#endif
+                    Tile = new Rectangle(0, 0, 78, 58),
+                    Size = new Vector2(78, 58)
+                };
+
+                LDtkPlayer.animator.OnEnteredDoor += () =>
+                {
+                    LDtkPlayer.animator.SetState(Animator.Animation.ExitDoor);
+                    levelManager.ChangeLevelTo(LDtkPlayer.door.levelIdentifier);
+                    destinationDoor = levelManager.CurrentLevel.GetEntity<Door>();
+                    LDtkPlayer.Position = destinationDoor.Position;
+                };
+
+                pixelTexture = new Texture2D(ScreenManager.GraphicsDevice, 1, 1);
+                pixelTexture.SetData(new byte[] { 0xFF, 0xFF, 0xFF, 0xFF });
+
+                fontTexture = content.Load<Texture2D>("Art/Gui/Font");
+                diamondTexture = content.Load<Texture2D>("Art/Gui/Diamond");
+
+            // Initialize the lighting system.
+            penumbra.Initialize();
 
 
                 #region LDTK Code
-                ScreenManager.Game.Window.ClientSizeChanged += (o, e) => OnWindowResized();
-                OnWindowResized();
+                //ScreenManager.Game.Window.ClientSizeChanged += (o, e) => OnWindowResized();
+                //OnWindowResized();
 
                 #endregion
 
@@ -146,6 +186,8 @@ namespace Examples.Screens
                 // timing mechanism that we have just finished a very long frame, and that
                 // it should not try to catch up.
                 //ScreenManager.Game.ResetElapsedTime();
+
+
             }
         }
 
@@ -192,23 +234,92 @@ namespace Examples.Screens
             {
                 float deltaTime = (float)gameTime.ElapsedGameTime.TotalSeconds;
 
-                // Apply some random jitter to make the enemy move around.
-                const float randomization = 10;
 
-                enemyPosition.X += (float)(random.NextDouble() - 0.5) * randomization;
-                enemyPosition.Y += (float)(random.NextDouble() - 0.5) * randomization;
-                enemyPosition = Vector2.Lerp(enemyPosition, new Vector2((int)MousePosition.X, (int)MousePosition.Y), 0.05f);
+                KeyboardState keyboard = Keyboard.GetState();
+                MouseState mouse = Mouse.GetState();
 
-                // Animate light position and hull rotation.
-                light.Position =
-                    new Vector2(400f, 240f) + // Offset origin
-                    new Vector2( // Position around origin
-                        (float)Math.Cos(gameTime.TotalGameTime.TotalSeconds),
-                        (float)Math.Sin(gameTime.TotalGameTime.TotalSeconds)) * 240f;
-                hull.Rotation = MathHelper.WrapAngle(-(float)gameTime.TotalGameTime.TotalSeconds);
+                // Debug/Cheats
+                if (keyboard.IsKeyDown(Keys.F1) && oldKeyboard.IsKeyDown(Keys.F1) == false)
+                {
+                    showTileColliders = !showTileColliders;
+                }
 
-                levelManager.SetCenterPoint(playerPosition);
+                if (keyboard.IsKeyDown(Keys.F2) && oldKeyboard.IsKeyDown(Keys.F2) == false)
+                {
+                    showEntityColliders = !showEntityColliders;
+                }
+
+                if (keyboard.IsKeyDown(Keys.F4) && oldKeyboard.IsKeyDown(Keys.F4) == false)
+                {
+                    diamondsCollected++;
+                }
+
+                if (keyboard.IsKeyDown(Keys.F5) && oldKeyboard.IsKeyDown(Keys.F5) == false)
+                {
+
+                }
+
+                levelManager.SetCenterPoint(LDtkPlayer.Position);
                 levelManager.Update();
+                LDtkPlayer.Update(keyboard, oldKeyboard, mouse, oldMouse, levelManager.CurrentLevel, deltaTime);
+
+                LDtkPlayer.door = null;
+                for (int i = 0; i < doors.Count; i++)
+                {
+                    doors[i].Update(deltaTime);
+
+                    if (LDtkPlayer.collider.Contains(doors[i].collider))
+                    {
+                        LDtkPlayer.door = doors[i];
+
+                        if (LDtkPlayer.animator.EnteredDoor())
+                        {
+                            doors[i].opening = true;
+                        }
+                        break;
+                    }
+                }
+
+                for (int i = 0; i < crates.Count; i++)
+                {
+                    crates[i].Update(deltaTime);
+
+                    if (LDtkPlayer.attack.Contains(crates[i].collider) && LDtkPlayer.attacking)
+                    {
+                        crates[i].Damage();
+                    }
+                }
+
+                for (int i = diamonds.Count - 1; i >= 0; i--)
+                {
+                    diamonds[i].Update(deltaTime, (float)gameTime.TotalGameTime.TotalSeconds);
+
+                    if (diamonds[i].delete)
+                    {
+                        _ = diamonds.Remove(diamonds[i]);
+                    }
+                    else if (diamonds[i].collected == false)
+                    {
+                        if (diamonds[i].collider.Contains(LDtkPlayer.collider))
+                        {
+                            diamondsCollected++;
+                            diamonds[i].collected = true;
+                        }
+                    }
+                }
+
+                // Follow Player
+                if (freeCam == false)
+                {
+                    cameraPosition = -new Vector2(LDtkPlayer.Position.X, LDtkPlayer.Position.Y - 30);
+                }
+
+                oldKeyboard = keyboard;
+                oldMouse = mouse;
+
+                light.Position = new Vector2(400, 240);
+
+                
             }
         }
 
@@ -260,7 +371,7 @@ namespace Examples.Screens
                 if (keyboardState.IsKeyDown(Keys.Down))
                     movement.Y++;
 
-                playerPosition = playerPosition + movement;
+                playerPosition = (playerPosition + movement);
 
                 if (keyboardState.IsKeyDown(Keys.Tab) && oldKeyboard.IsKeyDown(Keys.Tab) == false)
                 {
@@ -279,7 +390,7 @@ namespace Examples.Screens
                 // Follow Player
                 if (freeCam == false)
                 {
-                    cameraPosition = playerPosition;
+                    cameraPosition = -new Vector2(LDtkPlayer.Position.X - 400, LDtkPlayer.Position.Y - 240);
                 }
 
                 Vector2 thumbstick = gamePadState.ThumbSticks.Left;
@@ -310,27 +421,71 @@ namespace Examples.Screens
         /// </summary>
         public override void Draw(GameTime gameTime, GraphicsDevice graphicsDevice, SpriteBatch spriteBatch)
         {
-
-            Matrix camera = Matrix.CreateTranslation(cameraPosition.X, cameraPosition.Y, 0) * Matrix.CreateScale(pixelScale) * Matrix.CreateTranslation(cameraOrigin.X, cameraOrigin.Y, 0);
-            // Everything between penumbra.BeginDraw and penumbra.Draw will be
-            // lit by the lighting system.
+            camera = Matrix.CreateTranslation(cameraPosition.X, cameraPosition.Y, 0) * Matrix.CreateScale(pixelScale) * Matrix.CreateTranslation(cameraOrigin.X, cameraOrigin.Y, 0f);
             penumbra.BeginDraw();
+            graphicsDevice.Clear(ClearOptions.Target, Color.White, 0, 0);
+            levelManager.Clear(graphicsDevice);
 
-            ScreenManager.GraphicsDevice.Clear(ClearOptions.Target, Color.White, 0, 0);
-            levelManager.Clear(ScreenManager.GraphicsDevice);
-
-            // Use SamplerState.PointClamp when using small texture2D to avoid blur
-            //ScreenManager.SpriteBatch.Begin(SpriteSortMode.Deferred, null, SamplerState.PointClamp, null, null, null, Camera.GetTransformation());
-            ScreenManager.SpriteBatch.Begin(SpriteSortMode.Deferred, samplerState: SamplerState.PointClamp, transformMatrix: camera);
-
+            spriteBatch.Begin(samplerState: SamplerState.PointClamp, transformMatrix: camera);
             {
-                levelManager.Draw(ScreenManager.SpriteBatch);
-                EntityRendering();
+                levelManager.Draw(spriteBatch);
+                EntityRendering(spriteBatch);
+                DebugRendering(spriteBatch);
             }
+            spriteBatch.End();
 
-            ScreenManager.SpriteBatch.DrawString(gameFont, "Insert Gameplay Here", enemyPosition, Color.DarkRed);
+            // UI
+            spriteBatch.Begin(samplerState: SamplerState.PointClamp);
+            {
+                spriteBatch.Draw(diamondTexture,
+                    Vector2.One * pixelScale * 2,
+                    new Rectangle(0, 0, 12, 12),
+                    Color.White,
+                    0,
+                    Vector2.Zero,
+                    pixelScale * 2,
+                    SpriteEffects.None,
+                    0);
 
-            ScreenManager.SpriteBatch.End();
+                // Digit hundreds
+
+                int units = diamondsCollected % 10;
+                int tens = diamondsCollected / 10 % 10;
+                int hundreds = diamondsCollected / 100 % 10;
+
+                spriteBatch.Draw(fontTexture,
+                    new Vector2(12, 1) * pixelScale * 2,
+                    new Rectangle(7 * hundreds, 0, 7, 9),
+                    new Color(97, 152, 204, 255),
+                    0,
+                    Vector2.Zero,
+                    pixelScale * 2,
+                    SpriteEffects.None,
+                    0);
+
+                // Digit tens
+                spriteBatch.Draw(fontTexture,
+                    new Vector2(12 + 7, 1) * pixelScale * 2,
+                    new Rectangle(7 * tens, 0, 7, 9),
+                    new Color(97, 152, 204, 255),
+                    0,
+                    Vector2.Zero,
+                    pixelScale * 2,
+                    SpriteEffects.None,
+                    0);
+
+                // Digit units
+                spriteBatch.Draw(fontTexture,
+                    new Vector2(12 + 7 + 7, 1) * pixelScale * 2,
+                    new Rectangle(7 * units, 0, 7, 9),
+                    new Color(97, 152, 204, 255),
+                    0,
+                    Vector2.Zero,
+                    pixelScale * 2,
+                    SpriteEffects.None,
+                    0);
+            }
+            spriteBatch.End();
             penumbra.Draw(gameTime);
 
             // If the game is transitioning on or off, fade it out to black.
@@ -342,33 +497,67 @@ namespace Examples.Screens
             }
 }
 
-        private void EntityRendering()
+        private void EntityRendering(SpriteBatch spritebatch)
         {
+            //spritebatch.Begin(samplerState: SamplerState.PointClamp, transformMatrix: camera);
             for (int i = 0; i < doors.Count; i++)
             {
-                ScreenManager.SpriteBatch.Draw(doors[i].Texture, doors[i].Position, doors[i].Tile, Color.White, 0, doors[i].Pivot * doors[i].Size, 1, SpriteEffects.None, 0);
+                spritebatch.Draw(doors[i].Texture, doors[i].Position, doors[i].Tile, Color.White, 0, doors[i].Pivot * doors[i].Size, 1, SpriteEffects.None, 0);
             }
 
             for (int i = 0; i < crates.Count; i++)
             {
-                ScreenManager.SpriteBatch.Draw(crates[i].Texture, crates[i].Position, crates[i].Tile, Color.White, 0, crates[i].Pivot * crates[i].Size, 1, SpriteEffects.None, 0);
+                spritebatch.Draw(crates[i].Texture, crates[i].Position, crates[i].Tile, Color.White, 0, crates[i].Pivot * crates[i].Size, 1, SpriteEffects.None, 0);
             }
+
+            spritebatch.Draw(LDtkPlayer.Texture, LDtkPlayer.Position, LDtkPlayer.Tile, Color.White, 0, (LDtkPlayer.Pivot * LDtkPlayer.Size) + new Vector2(LDtkPlayer.fliped ? -8 : 8, -14),
+                1, LDtkPlayer.fliped ? SpriteEffects.None : SpriteEffects.FlipHorizontally, 0.1f);
 
             for (int i = 0; i < diamonds.Count; i++)
             {
-                ScreenManager.SpriteBatch.Draw(diamonds[i].Texture, diamonds[i].Position, diamonds[i].Tile, Color.White, 0, diamonds[i].Pivot * diamonds[i].Size, 1, SpriteEffects.None, 0);
+                spritebatch.Draw(diamonds[i].Texture, diamonds[i].Position, diamonds[i].Tile, Color.White, 0, diamonds[i].Pivot * diamonds[i].Size, 1, SpriteEffects.None, 0);
             }
         }
 
-        private void DebugRendering()
+        private void DebugRendering(SpriteBatch spriteBatch)
         {
+            // Debugging
+            if (showTileColliders)
+            {
+                for (int i = 0; i < LDtkPlayer.tiles.Count; i++)
+                {
+                    spriteBatch.DrawRect(LDtkPlayer.tiles[i].rect, new Color(128, 255, 0, 128));
+                }
+            }
 
+#if DEBUG
+            if (showEntityColliders)
+            {
+                for (int i = 0; i < doors.Count; i++)
+                {
+                    spriteBatch.DrawRect(doors[i].collider, doors[i].EditorVisualColor);
+                }
+
+                for (int i = 0; i < crates.Count; i++)
+                {
+                    spriteBatch.DrawRect(crates[i].collider, crates[i].EditorVisualColor);
+                }
+
+                for (int i = 0; i < diamonds.Count; i++)
+                {
+                    spriteBatch.DrawRect(diamonds[i].collider, diamonds[i].EditorVisualColor);
+                }
+
+                spriteBatch.DrawRect(LDtkPlayer.collider, LDtkPlayer.EditorVisualColor);
+                spriteBatch.DrawRect(LDtkPlayer.attack, LDtkPlayer.EditorVisualColor);
+            }
         }
+#endif
 
-        public virtual void OnWindowResized()
+        public void OnWindowResized(GraphicsDevice graphicsdevice)
         {
-            cameraOrigin = new Vector2(ScreenManager.GraphicsDevice.Viewport.Width / 2f, ScreenManager.GraphicsDevice.Viewport.Height / 2f);
-            pixelScale = Math.Max(ScreenManager.GraphicsDevice.Viewport.Height / 250, 1);
+            cameraOrigin = new Vector2(graphicsdevice.Viewport.Width / 2f, graphicsdevice.Viewport.Height / 2f);
+            pixelScale = Math.Max(graphicsdevice.Viewport.Height / 250, 1);
         }
     }
 }
